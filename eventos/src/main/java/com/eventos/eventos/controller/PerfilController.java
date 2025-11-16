@@ -173,7 +173,7 @@ public class PerfilController {
             return ResponseEntity.status(401).body(Map.of("erro", "Usuário não autenticado"));
         }
 
-        List<Inscricao> inscricoes = inscricaoRepository.findByUsuarioId(usuario.getId());
+        List<Inscricao> inscricoes = inscricaoRepository.findByUsuarioIdOrderByEventoDataAsc(usuario.getId());
 
         return ResponseEntity.ok(inscricoes);
     }
