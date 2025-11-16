@@ -31,6 +31,8 @@ public class EventoInscricaoController {
     @Autowired
     private UsuarioRepository usuarioRepository;
 
+    
+
     @PostMapping("/{id}/inscrever")
     public ResponseEntity<?> inscreverUsuario(
             @PathVariable Long id,

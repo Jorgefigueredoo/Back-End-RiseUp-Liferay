@@ -21,7 +21,7 @@ public class EventosApplication {
 
     @Autowired
     private UsuarioRepository usuarioRepository;
-    
+
     @Autowired
     private PerfilRepository perfilRepository;
 
@@ -31,14 +31,14 @@ public class EventosApplication {
     @Bean
     public CommandLineRunner initDatabase() {
         return args -> {
-            
+
             if (usuarioRepository.findByEmail("teste@email.com").isEmpty()) {
                 System.out.println("--- Criando usuário 'teste@email.com' ---");
                 Usuario usuarioTeste = new Usuario();
                 usuarioTeste.setNomeUsuario("testuser");
                 usuarioTeste.setEmail("teste@email.com");
                 usuarioTeste.setSenha(passwordEncoder.encode("123456"));
-                
+
                 Usuario usuarioSalvo = usuarioRepository.save(usuarioTeste);
                 System.out.println(">>> Usuário de teste criado.");
 
@@ -49,7 +49,7 @@ public class EventosApplication {
                 perfilTeste.setTitulo("Testador de Software");
                 perfilTeste.setSobreMim("Eu sou um usuário de teste automático.");
                 perfilTeste.setHabilidades(List.of("Java", "Spring", "Testes"));
-                
+
                 perfilRepository.save(perfilTeste);
                 System.out.println(">>> Perfil de teste criado.");
 
@@ -57,17 +57,16 @@ public class EventosApplication {
                 System.out.println("--- Usuário 'teste@email.com' já existe. ---");
             }
 
-            
             if (usuarioRepository.findByEmail("jorge@email.com").isEmpty()) {
                 System.out.println("--- Criando usuário 'jorge@email.com' ---");
                 Usuario usuarioJorge = new Usuario();
                 usuarioJorge.setNomeUsuario("jorgeuser");
                 usuarioJorge.setEmail("jorge@email.com");
-                usuarioJorge.setSenha(passwordEncoder.encode("12345")); 
-                
+                usuarioJorge.setSenha(passwordEncoder.encode("12345"));
+
                 Usuario jorgeSalvo = usuarioRepository.save(usuarioJorge);
                 System.out.println(">>> Usuário 'jorge' criado.");
-                
+
                 System.out.println("--- Criando perfil para 'jorgeuser' ---");
                 Perfil perfilJorge = new Perfil();
                 perfilJorge.setUsuario(jorgeSalvo);
@@ -75,10 +74,10 @@ public class EventosApplication {
                 perfilJorge.setTitulo("Desenvolvedor Backend");
                 perfilJorge.setSobreMim("Gosto de criar APIs e mexer com bancos de dados.");
                 perfilJorge.setHabilidades(List.of("Spring Boot", "SQL", "Docker"));
-                
+
                 perfilRepository.save(perfilJorge);
                 System.out.println(">>> Perfil de Jorge criado.");
-                
+
             } else {
                 System.out.println("--- Usuário 'jorge@email.com' já existe. ---");
             }

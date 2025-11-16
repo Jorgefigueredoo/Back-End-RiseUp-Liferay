@@ -2,12 +2,14 @@ package com.eventos.eventos.controller;
 
 import com.eventos.eventos.model.Perfil;
 import com.eventos.eventos.model.Usuario;
-import com.eventos.eventos.model.Evento; // Importação necessária
+import com.eventos.eventos.model.Evento;
+import com.eventos.eventos.model.Inscricao; // Adicionado
 import com.eventos.eventos.dto.PerfilUpdateDto;
 import com.eventos.eventos.dto.ResultadoBuscaDTO;
 import com.eventos.eventos.repository.PerfilRepository;
 import com.eventos.eventos.repository.UsuarioRepository;
-import com.eventos.eventos.repository.EventoRepository; // Importação necessária
+import com.eventos.eventos.repository.EventoRepository;
+import com.eventos.eventos.repository.InscricaoRepository; // Adicionado
 import com.eventos.eventos.service.FileStorageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -39,6 +41,9 @@ public class PerfilController {
 
     @Autowired
     private EventoRepository eventoRepository;
+
+    @Autowired
+    private InscricaoRepository inscricaoRepository; // Adicionado
 
     @GetMapping("/me")
     public ResponseEntity<?> getMeuPerfil(@AuthenticationPrincipal UserDetails userDetails) {
@@ -140,7 +145,6 @@ public class PerfilController {
         List<ResultadoBuscaDTO> resultadosEventos = eventosEncontrados.stream()
                 .map(evento -> {
                     String descricao = "Evento";
-
                     String urlEvento = "/detalhes-evento.html?id=" + evento.getId();
 
                     return new ResultadoBuscaDTO(
@@ -159,6 +163,19 @@ public class PerfilController {
         }
 
         return ResponseEntity.ok(resultadosFinais);
+    }
+
+    @GetMapping("/minhas-inscricoes")
+    public ResponseEntity<?> getMinhasInscricoes(@AuthenticationPrincipal UserDetails userDetails) {
+
+        Usuario usuario = buscarUsuarioLogado(userDetails);
+        if (usuario == null) {
+            return ResponseEntity.status(401).body(Map.of("erro", "Usuário não autenticado"));
+        }
+
+        List<Inscricao> inscricoes = inscricaoRepository.findByUsuarioId(usuario.getId());
+
+        return ResponseEntity.ok(inscricoes);
     }
 
     private Usuario buscarUsuarioLogado(UserDetails userDetails) {
