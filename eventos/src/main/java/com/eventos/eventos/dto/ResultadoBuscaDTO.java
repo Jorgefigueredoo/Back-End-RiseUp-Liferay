@@ -4,11 +4,16 @@ public class ResultadoBuscaDTO {
     private String nome;
     private String descricao;
     private String urlPerfil;
+    
+    // --- NOVO CAMPO ADICIONADO ---
+    private String fotoPerfilUrl; 
 
-    public ResultadoBuscaDTO(String nome, String descricao, String urlPerfil) {
+    // Construtor atualizado para receber a foto
+    public ResultadoBuscaDTO(String nome, String descricao, String urlPerfil, String fotoPerfilUrl) {
         this.nome = nome;
         this.descricao = descricao;
         this.urlPerfil = urlPerfil;
+        this.fotoPerfilUrl = fotoPerfilUrl;
     }
 
     public String getNome() {
@@ -33,5 +38,14 @@ public class ResultadoBuscaDTO {
 
     public void setUrlPerfil(String urlPerfil) {
         this.urlPerfil = urlPerfil;
+    }
+
+    // --- GETTERS E SETTERS DA FOTO ---
+    public String getFotoPerfilUrl() {
+        return fotoPerfilUrl;
+    }
+
+    public void setFotoPerfilUrl(String fotoPerfilUrl) {
+        this.fotoPerfilUrl = fotoPerfilUrl;
     }
 }

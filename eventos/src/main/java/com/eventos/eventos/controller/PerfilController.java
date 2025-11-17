@@ -3,13 +3,11 @@ package com.eventos.eventos.controller;
 import com.eventos.eventos.model.Perfil;
 import com.eventos.eventos.model.Usuario;
 import com.eventos.eventos.model.Evento;
-import com.eventos.eventos.model.Inscricao;
 import com.eventos.eventos.dto.PerfilUpdateDto;
 import com.eventos.eventos.dto.ResultadoBuscaDTO;
 import com.eventos.eventos.repository.PerfilRepository;
 import com.eventos.eventos.repository.UsuarioRepository;
 import com.eventos.eventos.repository.EventoRepository;
-import com.eventos.eventos.repository.InscricaoRepository;
 import com.eventos.eventos.service.FileStorageService;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/perfis")
@@ -38,8 +37,7 @@ public class PerfilController {
     @Autowired
     private EventoRepository eventoRepository;
 
-    @Autowired
-    private InscricaoRepository inscricaoRepository;
+    // --- ENDPOINTS DE PERFIL ---
 
     @GetMapping("/me")
     public ResponseEntity<?> getMeuPerfil(@AuthenticationPrincipal UserDetails userDetails) {
@@ -89,7 +87,8 @@ public class PerfilController {
             perfil.setFotoPerfilUrl(url);
             perfilRepository.save(perfil);
 
-            return ResponseEntity.ok(Map.of("url", url));
+            // Ajustado para retornar "novaUrl" que o JS espera
+            return ResponseEntity.ok(Map.of("novaUrl", url));
 
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("erro", e.getMessage()));
@@ -103,19 +102,24 @@ public class PerfilController {
                 .orElseGet(() -> ResponseEntity.status(404).body(Map.of("erro", "Perfil não encontrado")));
     }
 
+    // --- ENDPOINT DE BUSCA GLOBAL (CORRIGIDO COM FOTO) ---
+
     @GetMapping("/buscar")
     public ResponseEntity<List<ResultadoBuscaDTO>> buscarTudo(@RequestParam("q") String query) {
 
+        // 1. Busca Perfis
         List<Perfil> perfisEncontrados = perfilRepository.searchByNomeOuHabilidades(query);
 
         List<ResultadoBuscaDTO> perfis = perfisEncontrados.stream()
                 .map(p -> new ResultadoBuscaDTO(
                         p.getNomeCompleto(),
                         p.getTitulo() != null ? p.getTitulo() : "Colaborador",
-                        "/perfil.html?usuarioId=" + p.getUsuario().getId()
+                        "perfil.html?usuarioId=" + p.getUsuario().getId(),
+                        p.getFotoPerfilUrl() // <--- AQUI ESTÁ A FOTO!
                 ))
-                .toList();
+                .collect(Collectors.toList());
 
+        // 2. Busca Eventos
         List<Evento> eventos = eventoRepository
                 .findByNomeContainingIgnoreCaseOrDescricaoContainingIgnoreCase(query, query);
 
@@ -123,10 +127,12 @@ public class PerfilController {
                 .map(e -> new ResultadoBuscaDTO(
                         e.getNome(),
                         "Evento",
-                        "/detalhes-evento.html?id=" + e.getId()
+                        "detalhes-evento.html?id=" + e.getId(),
+                        null // Eventos não têm foto de perfil, passamos null
                 ))
-                .toList();
+                .collect(Collectors.toList());
 
+        // 3. Junta tudo
         List<ResultadoBuscaDTO> resultado = new ArrayList<>();
         resultado.addAll(perfis);
         resultado.addAll(eventosDTO);
