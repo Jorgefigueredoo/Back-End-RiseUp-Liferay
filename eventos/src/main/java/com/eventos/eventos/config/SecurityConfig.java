@@ -46,7 +46,8 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:5500",
                 "http://localhost:3000",
-                "http://127.0.0.1:5500"
+                "http://127.0.0.1:5500",
+                "https://*.onrender.com"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type"));
@@ -60,24 +61,22 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .cors().and()
-                .csrf().disable()
-                .authorizeHttpRequests()
-                .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/eventos/**").permitAll()
-
-                // --- ADICIONADO PARA SER MAIS ESPECÍFICO ---
-                .requestMatchers(HttpMethod.GET, "/api/perfis/buscar").permitAll()
-
-                // --- Sua linha original (MANTENHA) ---
-                .requestMatchers(HttpMethod.GET, "/api/perfis/**").permitAll()
-
-                .requestMatchers(HttpMethod.GET, "/fotos/**").permitAll()
-
-                .anyRequest().authenticated()
-                .and()
-                .sessionManagement()
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        // Endpoints públicos
+                        .requestMatchers("/", "/api/test", "/health").permitAll()
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/eventos/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/perfis/buscar").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/perfis/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/fotos/**").permitAll()
+                        // Todos os outros precisam autenticação
+                        .anyRequest().authenticated()
+                )
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                );
 
         http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
