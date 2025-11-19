@@ -87,7 +87,6 @@ public class PerfilController {
             perfil.setFotoPerfilUrl(url);
             perfilRepository.save(perfil);
 
-            // Ajustado para retornar "novaUrl" que o JS espera
             return ResponseEntity.ok(Map.of("novaUrl", url));
 
         } catch (Exception e) {
@@ -102,40 +101,62 @@ public class PerfilController {
                 .orElseGet(() -> ResponseEntity.status(404).body(Map.of("erro", "Perfil não encontrado")));
     }
 
-    // --- ENDPOINT DE BUSCA GLOBAL (CORRIGIDO COM FOTO) ---
+    // --- ENDPOINT DE BUSCA GLOBAL (CORRIGIDO COM FILTRO E FOTO) ---
 
+    // --- ENDPOINT DE BUSCA COM FILTROS ESPECÍFICOS ---
     @GetMapping("/buscar")
-    public ResponseEntity<List<ResultadoBuscaDTO>> buscarTudo(@RequestParam("q") String query) {
-
-        // 1. Busca Perfis
-        List<Perfil> perfisEncontrados = perfilRepository.searchByNomeOuHabilidades(query);
-
-        List<ResultadoBuscaDTO> perfis = perfisEncontrados.stream()
-                .map(p -> new ResultadoBuscaDTO(
-                        p.getNomeCompleto(),
-                        p.getTitulo() != null ? p.getTitulo() : "Colaborador",
-                        "perfil.html?usuarioId=" + p.getUsuario().getId(),
-                        p.getFotoPerfilUrl() // <--- AQUI ESTÁ A FOTO!
-                ))
-                .collect(Collectors.toList());
-
-        // 2. Busca Eventos
-        List<Evento> eventos = eventoRepository
-                .findByNomeContainingIgnoreCaseOrDescricaoContainingIgnoreCase(query, query);
-
-        List<ResultadoBuscaDTO> eventosDTO = eventos.stream()
-                .map(e -> new ResultadoBuscaDTO(
-                        e.getNome(),
-                        "Evento",
-                        "detalhes-evento.html?id=" + e.getId(),
-                        null // Eventos não têm foto de perfil, passamos null
-                ))
-                .collect(Collectors.toList());
-
-        // 3. Junta tudo
+    public ResponseEntity<List<ResultadoBuscaDTO>> buscarTudo(
+            @RequestParam("q") String query,
+            @RequestParam(value = "filtro", defaultValue = "todos") String filtro
+    ) {
         List<ResultadoBuscaDTO> resultado = new ArrayList<>();
-        resultado.addAll(perfis);
-        resultado.addAll(eventosDTO);
+
+        // --- LÓGICA PARA PERFIS (PESSOAS) ---
+        if (filtro.equals("todos") || filtro.equals("usuarios") || filtro.equals("habilidades")) {
+            
+            List<Perfil> perfisEncontrados;
+
+            // AQUI ESTÁ A CORREÇÃO:
+            if (filtro.equals("habilidades")) {
+                // Se o filtro for Habilidade, usa o método específico
+                perfisEncontrados = perfilRepository.findByHabilidadesContaining(query);
+            } else if (filtro.equals("usuarios")) {
+                // Se o filtro for Nome (usuarios), usa o método específico
+                perfisEncontrados = perfilRepository.findByNomeOuTitulo(query);
+            } else {
+                // Se for Todos, usa o método geral
+                perfisEncontrados = perfilRepository.searchByNomeOuHabilidades(query);
+            }
+
+            List<ResultadoBuscaDTO> perfisDTO = perfisEncontrados.stream()
+                    .map(p -> new ResultadoBuscaDTO(
+                            p.getNomeCompleto(),
+                            p.getTitulo() != null ? p.getTitulo() : "Colaborador",
+                            "perfil.html?usuarioId=" + p.getUsuario().getId(),
+                            p.getFotoPerfilUrl()
+                    ))
+                    .collect(Collectors.toList());
+            
+            resultado.addAll(perfisDTO);
+        }
+
+        // --- LÓGICA PARA EVENTOS ---
+        if (filtro.equals("todos") || filtro.equals("eventos")) {
+            
+            List<Evento> eventos = eventoRepository
+                    .findByNomeContainingIgnoreCaseOrDescricaoContainingIgnoreCase(query, query);
+
+            List<ResultadoBuscaDTO> eventosDTO = eventos.stream()
+                    .map(e -> new ResultadoBuscaDTO(
+                            e.getNome(),
+                            "Evento",
+                            "detalhes-evento.html?id=" + e.getId(),
+                            null
+                    ))
+                    .collect(Collectors.toList());
+            
+            resultado.addAll(eventosDTO);
+        }
 
         return ResponseEntity.ok(resultado);
     }
