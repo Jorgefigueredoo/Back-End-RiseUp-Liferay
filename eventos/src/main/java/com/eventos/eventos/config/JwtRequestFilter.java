@@ -15,6 +15,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 
 @Component
 public class JwtRequestFilter extends OncePerRequestFilter {
@@ -25,9 +27,25 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     @Autowired
     private JwtTokenUtil jwtTokenUtil;
 
+    // Lista de endpoints públicos que não precisam de JWT
+    private static final List<String> PUBLIC_ENDPOINTS = Arrays.asList(
+            "/api/auth/",
+            "/api/test",
+            "/health",
+            "/"
+    );
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
+
+        String requestPath = request.getRequestURI();
+
+        // Se for endpoint público, pula a validação do JWT
+        if (isPublicEndpoint(requestPath)) {
+            chain.doFilter(request, response);
+            return;
+        }
 
         final String requestTokenHeader = request.getHeader("Authorization");
 
@@ -39,12 +57,12 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             try {
                 username = jwtTokenUtil.getUsernameFromToken(jwtToken);
             } catch (IllegalArgumentException e) {
-                System.out.println("Não foi possível obter o token JWT");
+                logger.error("Não foi possível obter o token JWT");
             } catch (ExpiredJwtException e) {
-                System.out.println("Token JWT expirou");
+                logger.error("Token JWT expirou");
             }
         } else {
-            logger.warn("Token JWT não começa com 'Bearer '");
+            logger.warn("Token JWT não fornecido para: " + requestPath);
         }
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
@@ -53,8 +71,8 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
             if (jwtTokenUtil.validateToken(jwtToken, userDetails)) {
 
-                UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
+                UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = 
+                    new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                 usernamePasswordAuthenticationToken
                         .setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
@@ -62,5 +80,11 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             }
         }
         chain.doFilter(request, response);
+    }
+
+    // Verifica se o endpoint é público
+    private boolean isPublicEndpoint(String requestPath) {
+        return PUBLIC_ENDPOINTS.stream()
+                .anyMatch(requestPath::startsWith);
     }
 }
