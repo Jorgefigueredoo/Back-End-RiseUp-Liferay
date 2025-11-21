@@ -27,12 +27,15 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     @Autowired
     private JwtTokenUtil jwtTokenUtil;
 
-    // Lista de endpoints públicos que não precisam de JWT
+    // 🚀 ATUALIZADO: Lista completa de endpoints públicos (para bater com o SecurityConfig)
     private static final List<String> PUBLIC_ENDPOINTS = Arrays.asList(
             "/api/auth/",
             "/api/test",
             "/health",
-            "/"
+            "/",
+            "/api/eventos",       // Adicionado
+            "/api/perfis/buscar", // Adicionado
+            "/fotos/"             // Adicionado
     );
 
     @Override
@@ -41,13 +44,13 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
         String requestPath = request.getRequestURI();
 
-        // Se for endpoint público, pula a validação do JWT
-        if (isPublicEndpoint(requestPath)) {
+        // Se for endpoint público E não tiver token, deixa passar sem validar
+        // (Mas se tiver token, tentamos validar para identificar o usuário)
+        String requestTokenHeader = request.getHeader("Authorization");
+        if (requestTokenHeader == null && isPublicEndpoint(requestPath)) {
             chain.doFilter(request, response);
             return;
         }
-
-        final String requestTokenHeader = request.getHeader("Authorization");
 
         String username = null;
         String jwtToken = null;
@@ -62,7 +65,10 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 logger.error("Token JWT expirou");
             }
         } else {
-            logger.warn("Token JWT não fornecido para: " + requestPath);
+            // Se não é público e não tem token, logamos o aviso (mas deixamos o SecurityConfig barrar)
+            if (!isPublicEndpoint(requestPath)) {
+                logger.warn("Token JWT não fornecido para: " + requestPath);
+            }
         }
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
