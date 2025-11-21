@@ -44,8 +44,8 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // 🚀 CONFIGURAÇÃO LIBERADA PARA CORRIGIR O CORS DE VEZ
-        configuration.addAllowedOriginPattern("*"); // Permite qualquer origem (Vercel, Localhost, etc)
+        // 🚀 CONFIGURAÇÃO DE CORS (Permite tudo para evitar erros de conexão)
+        configuration.addAllowedOriginPattern("*"); // Aceita qualquer origem
         
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
@@ -59,32 +59,40 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // Aplica a configuração de CORS
+            // Aplica a configuração de CORS definida acima
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            // Desabilita CSRF (padrão para APIs stateless)
             .csrf(csrf -> csrf.disable())
+            // Configura as permissões de rotas
             .authorizeHttpRequests(auth -> auth
-                // 1. LIBERA O PREFLIGHT (ESSENCIAL)
+                // 1. LIBERA O PREFLIGHT (O navegador pergunta "posso conectar?" antes de enviar dados)
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 
-                // 2. ENDPOINTS PÚBLICOS (Sem Login)
+                // 2. ENDPOINTS PÚBLICOS GERAIS (Sem Login)
                 .requestMatchers("/", "/api/test", "/health").permitAll()
-                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/auth/**").permitAll() // Login e Registro
                 
-                // 3. ENDPOINTS PÚBLICOS (Apenas Leitura - GET)
-                // Correção aqui: HttpMethod.GET (e não HtatpMethod)
+                // 3. 🚨 REGRA CRUCIAL: O endpoint /me DEVE ser autenticado!
+                // Esta linha deve vir ANTES da regra geral de perfis.
+                .requestMatchers("/api/perfis/me").authenticated()
+
+                // 4. ENDPOINTS DE LEITURA PÚBLICA (GET)
                 .requestMatchers(HttpMethod.GET, "/api/eventos/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/perfis/buscar").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/perfis/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/fotos/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/perfis/**").permitAll() // Perfis públicos por ID
+                .requestMatchers(HttpMethod.GET, "/fotos/**").permitAll() // Fotos de perfil
                 
-                // 4. O RESTO PRECISA DE LOGIN
+                // 5. TUDO O MAIS PRECISA DE LOGIN
                 .anyRequest().authenticated()
             )
+            // Define sessão como Stateless (Não guarda cookies de sessão, usa apenas o Token)
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             );
 
+        // Adiciona o filtro JWT antes do filtro padrão de usuário/senha
         http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
+        
         return http.build();
     }
 }
