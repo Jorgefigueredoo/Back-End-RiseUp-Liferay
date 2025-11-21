@@ -44,21 +44,11 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // 1. LISTA DE ORIGENS PERMITIDAS (Adicionado o Vercel)
-        configuration.setAllowedOrigins(Arrays.asList(
-                "https://rise-up-2025-1-liferay.vercel.app", // <--- SEU FRONT-END NO VERCEL
-                "http://localhost:5500",
-                "http://localhost:3000",
-                "http://127.0.0.1:5500",
-                "https://back-end-riseup-liferay-5.onrender.com" // O próprio back-end
-        ));
+        // 🚀 CONFIGURAÇÃO LIBERADA PARA CORRIGIR O CORS DE VEZ
+        configuration.addAllowedOriginPattern("*"); // Permite qualquer origem (Vercel, Localhost, etc)
         
-        // 2. MÉTODOS PERMITIDOS
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"));
-        
-        // 3. CABEÇALHOS PERMITIDOS (Permitir todos resolve muitos problemas)
         configuration.setAllowedHeaders(Arrays.asList("*"));
-        
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -69,27 +59,30 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // Aplica a configuração de CORS definida acima
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests(auth -> auth
-                        // 4. IMPORTANTE: Libera o método OPTIONS (Preflight) para qualquer rota
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        
-                        // Endpoints públicos
-                        .requestMatchers("/", "/api/test", "/health").permitAll()
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/eventos/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/perfis/buscar").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/perfis/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/fotos/**").permitAll()
-                        
-                        // Todos os outros precisam autenticação
-                        .anyRequest().authenticated()
-                )
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                );
+            // Aplica a configuração de CORS
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .csrf(csrf -> csrf.disable())
+            .authorizeHttpRequests(auth -> auth
+                // 1. LIBERA O PREFLIGHT (ESSENCIAL)
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                
+                // 2. ENDPOINTS PÚBLICOS (Sem Login)
+                .requestMatchers("/", "/api/test", "/health").permitAll()
+                .requestMatchers("/api/auth/**").permitAll()
+                
+                // 3. ENDPOINTS PÚBLICOS (Apenas Leitura - GET)
+                // Correção aqui: HttpMethod.GET (e não HtatpMethod)
+                .requestMatchers(HttpMethod.GET, "/api/eventos/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/perfis/buscar").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/perfis/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/fotos/**").permitAll()
+                
+                // 4. O RESTO PRECISA DE LOGIN
+                .anyRequest().authenticated()
+            )
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            );
 
         http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
