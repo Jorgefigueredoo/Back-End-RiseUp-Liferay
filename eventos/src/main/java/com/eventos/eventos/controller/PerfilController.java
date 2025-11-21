@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/perfis")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "*") // Reforço de CORS
 public class PerfilController {
 
     @Autowired
@@ -39,17 +39,32 @@ public class PerfilController {
 
     // --- ENDPOINTS DE PERFIL ---
 
+    // 1. BUSCAR MEU PERFIL (Com Criação Automática para evitar erro 404)
     @GetMapping("/me")
     public ResponseEntity<?> getMeuPerfil(@AuthenticationPrincipal UserDetails userDetails) {
         Usuario usuario = buscarUsuarioLogado(userDetails);
         if (usuario == null) return ResponseEntity.status(401).body(Map.of("erro", "Usuário não autenticado"));
 
         Optional<Perfil> perfilOpt = perfilRepository.findByUsuarioId(usuario.getId());
-        if (perfilOpt.isEmpty()) return ResponseEntity.status(404).body(Map.of("erro", "Perfil não encontrado"));
+        
+        // 🚀 CORREÇÃO PRINCIPAL: Se não existir perfil, CRIA um novo agora!
+        if (perfilOpt.isEmpty()) {
+            Perfil novoPerfil = new Perfil();
+            novoPerfil.setUsuario(usuario);
+            // Usa o nome de usuário como fallback
+            novoPerfil.setNomeCompleto(usuario.getNomeUsuario()); 
+            novoPerfil.setTitulo("Membro da Comunidade");
+            novoPerfil.setSobreMim("Olá! Sou novo por aqui.");
+            novoPerfil.setHabilidades(new ArrayList<>()); // Inicializa lista vazia
+            
+            // Salva no banco e retorna o perfil criado
+            return ResponseEntity.ok(perfilRepository.save(novoPerfil));
+        }
 
         return ResponseEntity.ok(perfilOpt.get());
     }
 
+    // 2. ATUALIZAR MEU PERFIL (Com Garantia de Existência)
     @PutMapping("/me")
     public ResponseEntity<?> updateMeuPerfil(
             @AuthenticationPrincipal UserDetails userDetails,
@@ -58,10 +73,15 @@ public class PerfilController {
         Usuario usuario = buscarUsuarioLogado(userDetails);
         if (usuario == null) return ResponseEntity.status(401).body(Map.of("erro", "Usuário não autenticado"));
 
-        Optional<Perfil> perfilOpt = perfilRepository.findByUsuarioId(usuario.getId());
-        if (perfilOpt.isEmpty()) return ResponseEntity.status(404).body(Map.of("erro", "Perfil não encontrado"));
+        // Busca o perfil ou cria um novo caso não exista (Segurança extra)
+        Perfil perfil = perfilRepository.findByUsuarioId(usuario.getId())
+                .orElseGet(() -> {
+                    Perfil p = new Perfil();
+                    p.setUsuario(usuario);
+                    return p; // Será salvo abaixo
+                });
 
-        Perfil perfil = perfilOpt.get();
+        // Atualiza os campos recebidos
         perfil.setNomeCompleto(perfilUpdateDto.getNomeCompleto());
         perfil.setTitulo(perfilUpdateDto.getTitulo());
         perfil.setSobreMim(perfilUpdateDto.getSobreMim());
@@ -70,6 +90,7 @@ public class PerfilController {
         return ResponseEntity.ok(perfilRepository.save(perfil));
     }
 
+    // 3. UPLOAD DE FOTO (Com Garantia de Existência)
     @PostMapping("/foto")
     public ResponseEntity<?> uploadFotoPerfil(
             @AuthenticationPrincipal UserDetails userDetails,
@@ -78,22 +99,28 @@ public class PerfilController {
         Usuario usuario = buscarUsuarioLogado(userDetails);
         if (usuario == null) return ResponseEntity.status(401).body(Map.of("erro", "Usuário não autenticado"));
 
-        Optional<Perfil> perfilOpt = perfilRepository.findByUsuarioId(usuario.getId());
-        if (perfilOpt.isEmpty()) return ResponseEntity.status(404).body(Map.of("erro", "Perfil não encontrado"));
+        // Busca o perfil ou cria um novo caso não exista
+        Perfil perfil = perfilRepository.findByUsuarioId(usuario.getId())
+                .orElseGet(() -> {
+                    Perfil p = new Perfil();
+                    p.setUsuario(usuario);
+                    p.setNomeCompleto(usuario.getNomeUsuario());
+                    return perfilRepository.save(p); // Salva o perfil básico antes de por a foto
+                });
 
         try {
             String url = fileStorageService.salvarArquivo(file);
-            Perfil perfil = perfilOpt.get();
             perfil.setFotoPerfilUrl(url);
             perfilRepository.save(perfil);
 
             return ResponseEntity.ok(Map.of("novaUrl", url));
 
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("erro", e.getMessage()));
+            return ResponseEntity.status(500).body(Map.of("erro", "Erro ao salvar foto: " + e.getMessage()));
         }
     }
 
+    // 4. PERFIL PÚBLICO DE OUTRO USUÁRIO (Mantido igual)
     @GetMapping("/usuario/{usuarioId}")
     public ResponseEntity<?> getPerfilPublico(@PathVariable Long usuarioId) {
         return perfilRepository.findByUsuarioId(usuarioId)
@@ -101,9 +128,8 @@ public class PerfilController {
                 .orElseGet(() -> ResponseEntity.status(404).body(Map.of("erro", "Perfil não encontrado")));
     }
 
-    // --- ENDPOINT DE BUSCA GLOBAL (CORRIGIDO COM FILTRO E FOTO) ---
+    // --- ENDPOINT DE BUSCA GLOBAL ---
 
-    // --- ENDPOINT DE BUSCA COM FILTROS ESPECÍFICOS ---
     @GetMapping("/buscar")
     public ResponseEntity<List<ResultadoBuscaDTO>> buscarTudo(
             @RequestParam("q") String query,
@@ -116,15 +142,11 @@ public class PerfilController {
             
             List<Perfil> perfisEncontrados;
 
-            // AQUI ESTÁ A CORREÇÃO:
             if (filtro.equals("habilidades")) {
-                // Se o filtro for Habilidade, usa o método específico
                 perfisEncontrados = perfilRepository.findByHabilidadesContaining(query);
             } else if (filtro.equals("usuarios")) {
-                // Se o filtro for Nome (usuarios), usa o método específico
                 perfisEncontrados = perfilRepository.findByNomeOuTitulo(query);
             } else {
-                // Se for Todos, usa o método geral
                 perfisEncontrados = perfilRepository.searchByNomeOuHabilidades(query);
             }
 
@@ -151,7 +173,7 @@ public class PerfilController {
                             e.getNome(),
                             "Evento",
                             "detalhes-evento.html?id=" + e.getId(),
-                            null
+                            null // O front assume imagem padrão se null
                     ))
                     .collect(Collectors.toList());
             
@@ -161,6 +183,7 @@ public class PerfilController {
         return ResponseEntity.ok(resultado);
     }
 
+    // Método auxiliar para pegar o usuário do token
     private Usuario buscarUsuarioLogado(UserDetails userDetails) {
         if (userDetails == null) return null;
         return usuarioRepository
