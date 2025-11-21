@@ -27,15 +27,15 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     @Autowired
     private JwtTokenUtil jwtTokenUtil;
 
-    // 🚀 ATUALIZADO: Lista completa de endpoints públicos (para bater com o SecurityConfig)
+    // Lista de endpoints públicos
     private static final List<String> PUBLIC_ENDPOINTS = Arrays.asList(
             "/api/auth/",
             "/api/test",
             "/health",
             "/",
-            "/api/eventos",       // Adicionado
-            "/api/perfis/buscar", // Adicionado
-            "/fotos/"             // Adicionado
+            "/api/eventos",       
+            "/api/perfis/buscar", 
+            "/fotos/"             
     );
 
     @Override
@@ -43,11 +43,13 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String requestPath = request.getRequestURI();
+        final String requestTokenHeader = request.getHeader("Authorization");
 
-        // Se for endpoint público E não tiver token, deixa passar sem validar
-        // (Mas se tiver token, tentamos validar para identificar o usuário)
-        String requestTokenHeader = request.getHeader("Authorization");
-        if (requestTokenHeader == null && isPublicEndpoint(requestPath)) {
+        // Log para depuração (apenas em dev)
+        // logger.info("Processando requisição para: " + requestPath);
+
+        // 1. Se for endpoint público e NÃO tiver token, deixa passar direto
+        if (isPublicEndpoint(requestPath) && requestTokenHeader == null) {
             chain.doFilter(request, response);
             return;
         }
@@ -55,42 +57,44 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         String username = null;
         String jwtToken = null;
 
+        // 2. Tenta extrair o token
         if (requestTokenHeader != null && requestTokenHeader.startsWith("Bearer ")) {
             jwtToken = requestTokenHeader.substring(7);
             try {
                 username = jwtTokenUtil.getUsernameFromToken(jwtToken);
             } catch (IllegalArgumentException e) {
-                logger.error("Não foi possível obter o token JWT");
+                logger.error("Erro ao pegar JWT Token: " + e.getMessage());
             } catch (ExpiredJwtException e) {
-                logger.error("Token JWT expirou");
+                logger.warn("JWT Token expirado");
+            } catch (Exception e) {
+                logger.error("Erro desconhecido no token: " + e.getMessage());
             }
         } else {
-            // Se não é público e não tem token, logamos o aviso (mas deixamos o SecurityConfig barrar)
             if (!isPublicEndpoint(requestPath)) {
-                logger.warn("Token JWT não fornecido para: " + requestPath);
+                logger.warn("JWT Token não começa com Bearer ou está ausente. Header: " + requestTokenHeader);
             }
         }
 
+        // 3. Validação
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
 
             if (jwtTokenUtil.validateToken(jwtToken, userDetails)) {
-
                 UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = 
                     new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                
                 usernamePasswordAuthenticationToken
                         .setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
             }
         }
+        
         chain.doFilter(request, response);
     }
 
-    // Verifica se o endpoint é público
     private boolean isPublicEndpoint(String requestPath) {
-        return PUBLIC_ENDPOINTS.stream()
-                .anyMatch(requestPath::startsWith);
+        return PUBLIC_ENDPOINTS.stream().anyMatch(requestPath::startsWith);
     }
 }
