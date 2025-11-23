@@ -1,3 +1,5 @@
+package com.eventos.eventos.service;
+
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.eventos.eventos.repository.ContatoRepository; 
