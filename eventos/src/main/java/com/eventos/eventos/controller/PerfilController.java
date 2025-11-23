@@ -42,14 +42,15 @@ public class PerfilController {
     @GetMapping("/me")
     public ResponseEntity<?> getMeuPerfil(@AuthenticationPrincipal UserDetails userDetails) {
         Usuario usuario = buscarUsuarioLogado(userDetails);
-        if (usuario == null) return ResponseEntity.status(401).body(Map.of("erro", "Usuário não autenticado"));
+        if (usuario == null)
+            return ResponseEntity.status(401).body(Map.of("erro", "Usuário não autenticado"));
 
         Optional<Perfil> perfilOpt = perfilRepository.findByUsuarioId(usuario.getId());
-        
+
         if (perfilOpt.isEmpty()) {
             Perfil novoPerfil = new Perfil();
             novoPerfil.setUsuario(usuario);
-            novoPerfil.setNomeCompleto(usuario.getNomeUsuario()); 
+            novoPerfil.setNomeCompleto(usuario.getNomeUsuario());
             novoPerfil.setTitulo("Membro da Comunidade");
             novoPerfil.setSobreMim("Olá! Sou novo por aqui.");
             novoPerfil.setHabilidades(new ArrayList<>());
@@ -65,7 +66,8 @@ public class PerfilController {
             @RequestBody PerfilUpdateDto perfilUpdateDto) {
 
         Usuario usuario = buscarUsuarioLogado(userDetails);
-        if (usuario == null) return ResponseEntity.status(401).body(Map.of("erro", "Usuário não autenticado"));
+        if (usuario == null)
+            return ResponseEntity.status(401).body(Map.of("erro", "Usuário não autenticado"));
 
         Perfil perfil = perfilRepository.findByUsuarioId(usuario.getId())
                 .orElseGet(() -> {
@@ -88,7 +90,8 @@ public class PerfilController {
             @RequestParam("file") MultipartFile file) {
 
         Usuario usuario = buscarUsuarioLogado(userDetails);
-        if (usuario == null) return ResponseEntity.status(401).body(Map.of("erro", "Usuário não autenticado"));
+        if (usuario == null)
+            return ResponseEntity.status(401).body(Map.of("erro", "Usuário não autenticado"));
 
         Perfil perfil = perfilRepository.findByUsuarioId(usuario.getId())
                 .orElseGet(() -> {
@@ -115,16 +118,13 @@ public class PerfilController {
                 .orElseGet(() -> ResponseEntity.status(404).body(Map.of("erro", "Perfil não encontrado")));
     }
 
-    // --- ENDPOINT DE BUSCA GLOBAL (CORRIGIDO) ---
-
     @GetMapping("/buscar")
     public ResponseEntity<List<ResultadoBuscaDTO>> buscarTudo(
             @RequestParam("q") String query,
-            @RequestParam(value = "filtro", defaultValue = "todos") String filtro
-    ) {
+            @RequestParam(value = "filtro", defaultValue = "todos") String filtro) {
         List<ResultadoBuscaDTO> resultado = new ArrayList<>();
 
-        // PERFIS
+        
         if (filtro.equals("todos") || filtro.equals("usuarios") || filtro.equals("habilidades")) {
             List<Perfil> perfisEncontrados;
             if (filtro.equals("habilidades")) {
@@ -139,14 +139,11 @@ public class PerfilController {
                     .map(p -> new ResultadoBuscaDTO(
                             p.getNomeCompleto(),
                             p.getTitulo() != null ? p.getTitulo() : "Colaborador",
-                            
-                            // 🚀 CORREÇÃO AQUI: INVERTI A ORDEM (FOTO PRIMEIRO, LINK DEPOIS)
-                            // Assumindo que o construtor é (nome, titulo, imagem, link)
-                            p.getFotoPerfilUrl(), 
-                            "perfil.html?usuarioId=" + p.getUsuario().getId()
-                    ))
+
+                            p.getFotoPerfilUrl(),
+                            "perfil.html?usuarioId=" + p.getUsuario().getId()))
                     .collect(Collectors.toList());
-            
+
             resultado.addAll(perfisDTO);
         }
 
@@ -159,12 +156,12 @@ public class PerfilController {
                     .map(e -> new ResultadoBuscaDTO(
                             e.getNome(),
                             "Evento",
-                            // 🚀 CORREÇÃO AQUI TAMBÉM
-                            null, // Foto (null)
+
+                            null,
                             "detalhes-evento.html?id=" + e.getId() // Link
                     ))
                     .collect(Collectors.toList());
-            
+
             resultado.addAll(eventosDTO);
         }
 
@@ -172,7 +169,8 @@ public class PerfilController {
     }
 
     private Usuario buscarUsuarioLogado(UserDetails userDetails) {
-        if (userDetails == null) return null;
+        if (userDetails == null)
+            return null;
         return usuarioRepository
                 .findByNomeUsuarioOrEmail(userDetails.getUsername(), userDetails.getUsername())
                 .orElse(null);
