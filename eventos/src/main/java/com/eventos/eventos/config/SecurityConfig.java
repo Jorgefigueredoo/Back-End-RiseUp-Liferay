@@ -71,12 +71,14 @@ public class SecurityConfig {
                 .requestMatchers("/", "/api/test", "/health").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 
+                // 🔥 NOVO: LIBERANDO O FORMULÁRIO DE CONTATO 🔥
+                .requestMatchers("/api/contato/**").permitAll()
+                
                 // 3. 🚨 EXCEÇÃO IMPORTANTE: O endpoint /me PRECISA de autenticação!
                 // Colocamos isso ANTES da regra geral de perfis para não ser confundido.
                 .requestMatchers("/api/perfis/me").authenticated()
 
                 // 4. ENDPOINTS PÚBLICOS DE LEITURA (GET)
-                // Correção do erro de digitação: HtatpMethod -> HttpMethod
                 .requestMatchers(HttpMethod.GET, "/api/eventos/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/perfis/buscar").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/perfis/**").permitAll() // Outros perfis são públicos
