@@ -3,12 +3,17 @@ package com.eventos.eventos.dto;
 public class ResultadoBuscaDTO {
     private String nome;
     private String descricao;
-    private String urlPerfil;
+    private String urlPerfil; // Este campo corresponde ao LINK (ex: perfil.html?id=1)
     
     // --- NOVO CAMPO ADICIONADO ---
-    private String fotoPerfilUrl; 
+    private String fotoPerfilUrl; // Este campo corresponde à FOTO (ex: http://cloudinary...)
+
+    // Construtor vazio (necessário para serialização JSON em alguns casos)
+    public ResultadoBuscaDTO() {
+    }
 
     // Construtor atualizado para receber a foto
+    // A ordem aqui é importante: nome, descricao, urlPerfil (LINK), fotoPerfilUrl (FOTO)
     public ResultadoBuscaDTO(String nome, String descricao, String urlPerfil, String fotoPerfilUrl) {
         this.nome = nome;
         this.descricao = descricao;
@@ -32,6 +37,7 @@ public class ResultadoBuscaDTO {
         this.descricao = descricao;
     }
 
+    // Este método retorna o LINK do perfil ou evento
     public String getUrlPerfil() {
         return urlPerfil;
     }

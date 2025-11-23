@@ -39,6 +39,7 @@ public class PerfilController {
 
     // --- ENDPOINTS DE PERFIL ---
 
+    // 1. BUSCAR MEU PERFIL (Com Criação Automática)
     @GetMapping("/me")
     public ResponseEntity<?> getMeuPerfil(@AuthenticationPrincipal UserDetails userDetails) {
         Usuario usuario = buscarUsuarioLogado(userDetails);
@@ -46,6 +47,7 @@ public class PerfilController {
 
         Optional<Perfil> perfilOpt = perfilRepository.findByUsuarioId(usuario.getId());
         
+        // Se não existir perfil, cria um novo automaticamente
         if (perfilOpt.isEmpty()) {
             Perfil novoPerfil = new Perfil();
             novoPerfil.setUsuario(usuario);
@@ -53,12 +55,14 @@ public class PerfilController {
             novoPerfil.setTitulo("Membro da Comunidade");
             novoPerfil.setSobreMim("Olá! Sou novo por aqui.");
             novoPerfil.setHabilidades(new ArrayList<>());
+            
             return ResponseEntity.ok(perfilRepository.save(novoPerfil));
         }
 
         return ResponseEntity.ok(perfilOpt.get());
     }
 
+    // 2. ATUALIZAR MEU PERFIL
     @PutMapping("/me")
     public ResponseEntity<?> updateMeuPerfil(
             @AuthenticationPrincipal UserDetails userDetails,
@@ -82,6 +86,7 @@ public class PerfilController {
         return ResponseEntity.ok(perfilRepository.save(perfil));
     }
 
+    // 3. UPLOAD DE FOTO
     @PostMapping("/foto")
     public ResponseEntity<?> uploadFotoPerfil(
             @AuthenticationPrincipal UserDetails userDetails,
@@ -108,6 +113,7 @@ public class PerfilController {
         }
     }
 
+    // 4. PERFIL PÚBLICO (Outro usuário)
     @GetMapping("/usuario/{usuarioId}")
     public ResponseEntity<?> getPerfilPublico(@PathVariable Long usuarioId) {
         return perfilRepository.findByUsuarioId(usuarioId)
@@ -115,7 +121,7 @@ public class PerfilController {
                 .orElseGet(() -> ResponseEntity.status(404).body(Map.of("erro", "Perfil não encontrado")));
     }
 
-    // --- ENDPOINT DE BUSCA GLOBAL (CORRIGIDO AQUI) ---
+    // --- ENDPOINT DE BUSCA GLOBAL (CORRIGIDO) ---
 
     @GetMapping("/buscar")
     public ResponseEntity<List<ResultadoBuscaDTO>> buscarTudo(
@@ -140,9 +146,10 @@ public class PerfilController {
                             p.getNomeCompleto(),
                             p.getTitulo() != null ? p.getTitulo() : "Colaborador",
                             
-                            // 🚀 CORREÇÃO: FOTO VEM ANTES DO LINK AGORA
-                            p.getFotoPerfilUrl(), // 3º Param: Foto
-                            "perfil.html?usuarioId=" + p.getUsuario().getId() // 4º Param: Link
+                            // 🚀 CORREÇÃO AQUI: Ordem correta para bater com o DTO
+                            // DTO espera: (nome, descricao, LINK, FOTO)
+                            "perfil.html?usuarioId=" + p.getUsuario().getId(), // 3º param: LINK
+                            p.getFotoPerfilUrl()                               // 4º param: FOTO
                     ))
                     .collect(Collectors.toList());
             
@@ -158,9 +165,10 @@ public class PerfilController {
                     .map(e -> new ResultadoBuscaDTO(
                             e.getNome(),
                             "Evento",
-                            // 🚀 CORREÇÃO: NULL PARA FOTO, LINK DEPOIS
-                            null, 
-                            "detalhes-evento.html?id=" + e.getId()
+                            
+                            // 🚀 CORREÇÃO AQUI TAMBÉM
+                            "detalhes-evento.html?id=" + e.getId(), // 3º param: LINK
+                            null                                    // 4º param: FOTO
                     ))
                     .collect(Collectors.toList());
             
